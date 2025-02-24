@@ -1,0 +1,199 @@
+# Nginix deployment using K3d (light version of Kubernettes) 
+# You will see how to use a Deployment to manage a Kubernetes workload. You
+# will also perform various operations on the deployment such as upgrade, pause, resume,
+# and scale. This Lab requires an existing k3d cluster named “mycluster1” which is
+# should already be created.
+# You will continue working in the 'VM_WA2919_REL_3_4’ or whatever you designate as your VM name.
+# Make sure you ran the following command in a previously:
+# docker login -u {your-docker-id} -p {your-access-token}
+##Pre-Setup##
+# __1. Open a new Terminal.
+# __2. Verify the current user with the command "whoami”, it should be “wasadmin”.
+# __3. Navigate to the working directory:
+# cd /home/wasadmin/Works
+# Note: For the entire lab you are doing all work in the folder: /home/wasadmin/Works
+## Start-Up Kubernetes ##
+# In this part, you will start up the Kubernetes cluster. The lab setup comes with the
+# lightweight version of Kubernetes called k3d, which has been preinstalled.
+# __1. Check if the k3d cluster named “mycluster1” is running?
+k3d cluster list
+# The resulting output of a stopped cluster shows SERVERS 0/1 AGENTS 0/1 as shown
+# in the below:
+# 56__2. If it is running, then stop it using this command:
+k3d cluster stop mycluster1
+# __3. Once the cluster is stopped, start the k3d cluster named “mycluster1”:
+k3d cluster start mycluster1
+# The Result of the “k3d cluster start” command will be similar to the following image:
+# __4. Check that the k3d cluster is running:
+k3d cluster list
+# The resulting output shows SERVERS 1/1 AGENTS 1/1 as shown in the below:
+# Part 3 - Create a Deployment
+# __1. Use gedit to create a deployment manifest file using. This command will create the
+# file and bring it up in edit mode:
+gedit nginx-deployment.yaml
+# __2. Add the following YAML to the file.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+name: nginx-deployment
+labels:
+app: nginx
+spec:
+replicas: 3
+selector:
+matchLabels:
+app: nginx
+template:
+metadata:
+labels:
+app: nginx
+spec:
+containers:
+- name: nginx
+image: nginx:1.7.9
+ports:
+- containerPort: 80
+# Important: YAML requires consistent indentation! Each indentation is 2
+# spaces. Please check that you have the correct alignment as seen above. The YAML you
+# entered should look exactly the same.
+# This YAML manifest declares Deployment named nginx-deployment is
+# created, indicated by the .metadata.name field.
+# The Deployment creates three replicated Pods, indicated by the replicas field.
+# The selector field defines how the Deployment finds which Pods to manage. In this case,
+# you simply select a label that is defined in the Pod template (app: nginx). However,
+# more sophisticated selection rules are possible, as long as the Pod template itself
+# satisfies the rule.
+# The template field contains the following sub-fields:
+# • The Pods are labeled app: nginx using the labels field.
+# • The Pod template’s specification, or .template.spec field, indicates that the Pods run
+# one container, nginx, which runs the nginx Docker Hub image at version 1.7.9.
+# • Create one container and name it nginx using the name field.
+# __3. Save the file.
+# __4. Close the editor. [Don't worry about the warnings if you see any]
+# __5. Create the Deployment by running the following command:
+kubectl create -f nginx-deployment.yaml
+# You should see the following output:
+#
+# deployment.apps/nginx-deployment created
+#
+# __6. Run the following command to verify the Deployment was created:
+kubectl get deployments
+# You should see a resulting output similar to the following:
+# Note: If you don't get the above result then it might take a few minutes for the nginx
+# image to be downloaded from Docker Hub, wait and don’t move to the next step until
+# you see the deployment output show READY 3/3.
+# __7. To see the Deployment rollout status, run the following command:
+kubectl rollout status deployment.v1.apps/nginx-deployment
+# above command should return the following ...
+# 
+# deployment "nginx-deployment" successfully rolled out
+#
+# __8. Run the kubectl get deployments command again a few seconds later to ensure the
+# deployment has completed and check the current status of the deployment.
+# __9. To view the details of the deployment run the following command:
+kubectl get deployment nginx-deployment -o yaml
+# __10. Labels are automatically generated for each Pod, to see what they are run:
+kubectl get pods --show-labels
+# 
+##Updating the Deployment##
+#
+# __1. Run the following command to check the nginx version image used by the current
+# Deployment:
+kubectl describe deployment nginx-deployment
+# Notice image is displayed as 1.7.9. Note: You might need to scroll up to see the
+# “containers” section which will have the image field.
+# __2. Open the Deployment manifest for editing:
+gedit nginx-deployment.yaml
+# __3. Change image version from 1.7.9 to 1.9.1
+# __4. Change replica count from 3 to 4
+# 
+# __5. Save the YAML file and close the editor.
+# __7. Apply the updates:
+kubectl apply -f nginx-deployment.yaml
+# __8. Check rolling update status:
+kubectl rollout status deployment.v1.apps/nginx-deployment
+# Note: It might take a few minutes for all replicas to get updated to the new nginx
+# version.
+# __9. View the Deployment:
+kubectl get deployments
+# Ensure there are 4 replicas as shown below:
+# __10. Verify nginx version is updated to 1.9.1:
+kubectl describe deployment nginx-deployment
+# Ensure the Image version is 1.9.1. Note: You may need to scroll to find the “Containers”
+# section that contains the “Image” field.
+## Roll Back a Deployment ##
+# Here you will revert an update. One use-case where a rollback can be useful is
+# when you try to upgrade your Deployment to a version that doesn’t exist. You can
+# rollback such a deployment to make your application functional again by reverting to the
+# previous version.
+# __1. Suppose that you made a typo while updating the Deployment, by putting the image
+# name as “nginx:1.91” instead of “nginx:1.9.1”, enter this command to make a change that
+# simulates this kind of error:
+kubectl set image deployment.v1.apps/nginx-deployment nginx=nginx:1.91
+# kubectl returns the following after the above command ...
+##deployment.apps/nginx-deployment image updated##
+#
+# __2. The rollout gets stuck. You can verify it by checking the rollout status:
+kubectl rollout status deployment.v1.apps/nginx-deployment
+# __3. Press Ctrl+C to stop the above rollout status watch.
+# __4. Run the following command to get pod list:
+kubectl get pods
+# Looking at the Pods created, you see that Pod(s) created by the new ReplicaSet is stuck
+# in an image-pull back-off loop.
+# __5. Check the logs of one of the pods that has an ImagePullBackoff status for example
+# nginx-deployment-[UUID]. Replace the [UUID] as required for the pod you choose.
+kubectl logs nginx-deployment-[UUID]
+# The resulting output of the logs will show something similar to:
+# Error from server (BadRequest): container "nginx" in pod "nginx-
+# deployment-69f84c994-8l6l9" is waiting to start: trying and failing to pull image
+# __6. To get more log details from the pod run the following command:
+kubectl describe pod nginx-deployment-[UUID]
+# Look in the “Events” section of the resulting output, it will something similar to:
+# __7. Undo the recent change:
+kubectl rollout undo deployment.v1.apps/nginx-deployment
+# __8. Verify the invalid pods are removed (you may need to repeat the command until they
+# are gone, they will show first as Terminating):
+kubectl get pods
+# __9. Scale the deployment by using an imperative command:
+kubectl scale deployment.v1.apps/nginx-deployment --replicas=1
+# __10. Verify scaling is configured:
+kubectl get deployments nginx-deployment
+# The Resulting output should now show only one replica i.e. READY 1/1 as seen below:
+## Pausing and Resuming a Deployment ##
+# You can pause a Deployment before triggering one or more updates and then resume it
+# again. This allows you to apply multiple fixes in between pausing and resuming without
+# triggering unnecessary rollouts.
+# __1. Pause the Deployment by running the following command:
+kubectl rollout pause deployment.v1.apps/nginx-deployment
+# __2. While the rollout is paused, set the Deployment image to a different version:
+kubectl set image deployment.v1.apps/nginx-deployment nginx=nginx:1.9.2
+# __3. Run the following command to verify the image version:
+kubectl rollout status deployment.v1.apps/nginx-deployment
+# Note: This command will keep showing “Waiting for deployment” because the rollout is
+# paused.
+# __4. Press Ctrl+C to exit out, back to the terminal.
+# __5. Resume the rollout:
+kubectl rollout resume deployment.v1.apps/nginx-deployment
+# __6. Verify the rollout status:
+kubectl rollout status deployment.v1.apps/nginx-deployment
+# Note: You may have to wait few seconds for the command to be completed.
+#__7. Verify the Deployment image version:
+kubectl describe deployment nginx-deployment
+# Note: The Image version should show as 1.9.2. (Look for the Image field in the output).
+## Clean-Up ##
+# __1. Delete your Deployment:
+kubectl delete deployments/nginx-deployment
+# __2. Verify the deployment is deleted:
+kubectl get deployments
+# __3. Verify the nginx-deployment pods are deleted:
+kubectl get pods
+# Note: It might take a few moments for the pods to get deleted.
+# __4. Stop the k3d (Kubernetes) cluster named “mycluster1”:
+k3d cluster stop mycluster1
+# __5. Delete the k3d (Kubernetes) cluster named “mycluster1”:
+k3d cluster delete mycluster1
+# __6. When the command is done, close the terminal window [type exit].
+#  Review
+# You deployed a Kubernetes workload. You also performed various operations,
+# such as upgrade, pause, resume, and scaling of a Deployment.
+# you can use this code as a starting point for something real
