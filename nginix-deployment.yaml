@@ -1,14 +1,14 @@
 # Nginix deployment using K3d (light version of Kubernettes) 
 # You will see how to use a Deployment to manage a Kubernetes workload. You
 # will also perform various operations on the deployment such as upgrade, pause, resume,
-# and scale. This Lab requires an existing k3d cluster named “mycluster1” which is
+# and scale. An existing k3d cluster named “mycluster1” which is
 # should already be created.
 # You will continue working in the 'VM_WA2919_REL_3_4’ or whatever you designate as your VM name.
 # Make sure you ran the following command in a previously:
 # docker login -u {your-docker-id} -p {your-access-token}
 ##Pre-Setup##
 # __1. Open a new Terminal.
-# __2. Verify the current user with the command "whoami”, it should be “wasadmin”.
+# __2. Verify the current user with the command "whoami”, it should be “whatever”.
 # __3. Navigate to the working directory:
 # cd /home/wasadmin/Works
 # Note: For the entire lab you are doing all work in the folder: /home/wasadmin/Works
